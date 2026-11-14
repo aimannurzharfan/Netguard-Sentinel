@@ -24,12 +24,12 @@ The screenshot shows the one-click localhost scan: three deliberately vulnerable
 
 Six stages, all automated:
 
-1. **Port scan** -- threaded TCP connect scan, banner grab, service and version fingerprinted from the banner with regex (Apache/2.4.49, SSH-2.0-OpenSSH_6.6.1p1, nginx/1.18.0, etc.).
-2. **Vulnerability enrichment** -- calls the `threat_intel_lookup` tool, which returns CVEs with CVSS base score (NVD), EPSS exploit probability (FIRST), and CISA KEV known-exploited status.
-3. **Composite risk scoring** -- combines the three signals into a 0-100 score per CVE (formula below).
-4. **Contextual prioritization** -- ranks findings worst-first. A reachable, actively-exploited medium outranks an unreachable critical.
-5. **Attack-path reasoning** -- maps findings to MITRE ATT&CK techniques and chains them into the likely attacker path through the host.
-6. **Remediation synthesis** -- writes a per-finding fix ordered to break the attack path first, plus a one-line host risk summary.
+1. **Port scan:** threaded TCP connect scan, banner grab, service and version fingerprinted from the banner with regex (Apache/2.4.49, SSH-2.0-OpenSSH_6.6.1p1, nginx/1.18.0, etc.).
+2. **Vulnerability enrichment:** calls the `threat_intel_lookup` tool, which returns CVEs with CVSS base score (NVD), EPSS exploit probability (FIRST), and CISA KEV known-exploited status.
+3. **Composite risk scoring:** combines the three signals into a 0-100 score per CVE (formula below).
+4. **Contextual prioritization:** ranks findings worst-first. A reachable, actively-exploited medium outranks an unreachable critical.
+5. **Attack-path reasoning:** maps findings to MITRE ATT&CK techniques and chains them into the likely attacker path through the host.
+6. **Remediation synthesis:** writes a per-finding fix ordered to break the attack path first, plus a one-line host risk summary.
 
 Output is strict JSON (schema in `agent/schema.py`).
 
@@ -37,7 +37,7 @@ Output is strict JSON (schema in `agent/schema.py`).
 
 Stages 1-3 (parse, enrich, score) always run as deterministic Python so CVE data and composite scores are always authoritative. Stages 4-6 (prioritize, attack-path reasoning, remediation narrative) are handled by Phi-4-mini-instruct via Microsoft Foundry when `FOUNDRY_ENDPOINT`, `FOUNDRY_MODEL_DEPLOYMENT`, and `FOUNDRY_API_KEY` are set in `.env`. The deterministic pipeline is the fallback when Foundry is unconfigured or returns an error, so the demo never breaks.
 
-Phi-4-mini-instruct reasons over the pre-enriched findings and returns contextual prioritization, an attack-path narrative, and per-finding remediation text. The model cannot change CVE scores, invent CVE IDs, or assign MITRE ATT&CK techniques -- those come only from the deterministic pipeline.
+Phi-4-mini-instruct reasons over the pre-enriched findings and returns contextual prioritization, an attack-path narrative, and per-finding remediation text. The model cannot change CVE scores, invent CVE IDs, or assign MITRE ATT&CK techniques; those come only from the deterministic pipeline.
 
 Threat enrichment itself has two swappable backends behind one tool interface: a local JSON cache built from NVD, EPSS, and CISA KEV feeds (default), and an Oracle 23ai container queried with AI Vector Search (`THREAT_BACKEND=oracle`).
 
@@ -147,7 +147,7 @@ FOUNDRY_MODEL_DEPLOYMENT=Phi-4-mini-instruct
 FOUNDRY_API_KEY=<your key>
 ```
 
-`FOUNDRY_PROJECT_ENDPOINT` is also accepted as a fallback -- the client appends `/openai/v1` automatically. With these set, `triage()` sends enriched findings to Phi-4-mini-instruct for stages 4-6 and falls back to the deterministic pipeline on any error.
+`FOUNDRY_PROJECT_ENDPOINT` is also accepted as a fallback; the client appends `/openai/v1` automatically. With these set, `triage()` sends enriched findings to Phi-4-mini-instruct for stages 4-6 and falls back to the deterministic pipeline on any error.
 
 ### Switching threat backends
 
@@ -180,7 +180,7 @@ NetGuard Sentinel is a local tool, not a hosted service, and ships with no authe
 - **Socket-only scanning.** Probing uses plain TCP connect and banner reads. No user input ever reaches a shell, and there is no `subprocess` or `os.system` anywhere in the scan path. Scanning runs with bounded concurrency and per-connection socket timeouts so a scan cannot hang or exhaust resources.
 - **Rate limit.** `/scan` is capped at 10 requests per minute per client by default, configurable with `SCAN_RATE_LIMIT`. Exceeding it returns HTTP 429. The limiter is in-process with no external dependency.
 - **Server hardening.** Flask debug is off by default, request bodies are capped at 1 MB, error responses are generic with no stack traces, CORS is not enabled, and responses carry `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`.
-- **Secrets.** No secrets are committed. `.env`, `.mcp.json`, `_local/`, `.claude/`, and `node_modules/` are gitignored; `.env.example` holds placeholders only.
+- **Secrets.** No secrets are committed. `.env`, local tool folders and `node_modules/` are gitignored; `.env.example` holds placeholders only.
 
 The localhost demo works one-click out of the box because `127.0.0.1` satisfies the default policy.
 
